@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Confirm Delete{% endblock %}
+{% block page_title %}Confirm Delete{% endblock %}
+{% block content %}
+<div style="max-width:400px;">
+<div class="card-dark">
+  <div style="font-size:32px;text-align:center;margin-bottom:12px;">!</div>
+  <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px;text-align:center;margin-bottom:8px;">Cancel Quotation?</div>
+  <div style="color:var(--text-muted);font-size:13px;text-align:center;margin-bottom:20px;">
+    This will cancel quotation <strong>{{ invoice.quotation_number }}</strong>. This action cannot be undone.
+  </div>
+  <div class="d-flex gap-2 justify-content-center">
+    <form method="post">{% csrf_token %}
+      <button type="submit" style="background:var(--danger);border:none;color:#fff;padding:8px 18px;border-radius:8px;font-weight:600;cursor:pointer;">Yes, Cancel Quotation</button>
+    </form>
+<a href="{% url 'quotations:detail' quotation.pk %}" class="btn-ghost">Go Back</a>
+  </div>
+</div>
+</div>
+{% endblock %}

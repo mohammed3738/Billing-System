@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>{{ invoice.invoice_number }}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,sans-serif;font-size:11px;color:#000;background:#fff;}
+.page{width:210mm;margin:0 auto;padding:6mm 8mm;border:1px solid #888;}
+.header-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3mm;}
+.company-info{flex:1;padding-left:10px;}
+.company-name{font-size:17px;font-weight:800;color:#1a3a5c;}
+.invoice-title{text-align:center;background:#1a3a5c;color:#fff;font-size:17px;font-weight:700;padding:5px;margin:3mm 0;letter-spacing:2px;}
+.parties{display:grid;grid-template-columns:1fr 1fr;border:1px solid #999;margin-bottom:2mm;}
+.party-box{padding:5px 7px;}
+.party-box+.party-box{border-left:1px solid #ccc;}
+.party-title{font-weight:700;font-size:10px;background:#e8eef5;padding:2px 4px;margin-bottom:4px;border-bottom:1px solid #ccc;}
+.party-name{font-weight:700;font-size:11px;margin-bottom:2px;}
+.party-detail{font-size:10px;color:#333;line-height:1.6;}
+.meta-row{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ccc;margin-bottom:2mm;}
+.meta-cell{padding:4px 6px;border-right:1px solid #eee;font-size:10px;}
+.meta-cell:last-child{border-right:none;}
+.meta-label{color:#666;margin-bottom:1px;}
+.meta-val{font-weight:600;}
+table.items{width:100%;border-collapse:collapse;margin-bottom:2mm;}
+table.items th{background:#1a3a5c;color:#fff;padding:4px 5px;font-size:10px;text-align:center;border:1px solid #999;}
+table.items td{border:1px solid #ccc;padding:4px 5px;font-size:10.5px;}
+table.items td.r{text-align:right;}
+table.items td.c{text-align:center;}
+table.items tr:nth-child(even){background:#f9f9f9;}
+.totals{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-bottom:2mm;}
+.gst-tbl{width:100%;border-collapse:collapse;}
+.gst-tbl th,.gst-tbl td{border:1px solid #ccc;padding:3px 6px;font-size:10px;text-align:center;}
+.gst-tbl th{background:#e8eef5;font-weight:700;}
+.tot-box{border:1px solid #999;}
+.tot-row{display:flex;justify-content:space-between;padding:4px 8px;border-bottom:1px solid #eee;font-size:11px;}
+.tot-row.grand{background:#1a3a5c;color:#fff;font-weight:700;font-size:13px;border:none;}
+.words-box{border:1px solid #ccc;padding:5px 8px;margin-bottom:2mm;font-size:10.5px;}
+.footer{display:grid;grid-template-columns:1fr 1fr;gap:4mm;}
+.terms-box{border:1px solid #ccc;padding:5px 8px;}
+.terms-title{font-weight:700;font-size:10.5px;margin-bottom:4px;}
+.bank-box{border:1px solid #ccc;padding:5px 8px;font-size:10.5px;line-height:1.7;}
+.sign-area{text-align:right;padding-top:10mm;}
+.sign-line{border-top:1px solid #000;width:100px;margin-left:auto;margin-top:8mm;}
+@media print{body{margin:0}.page{padding:5mm}.no-print{display:none}}
+</style>
+</head>
+<body>
+<div class="no-print" style="padding:10px;background:#eee;display:flex;gap:10px;align-items:center;">
+  <button onclick="window.print()" style="padding:7px 18px;background:#1a3a5c;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;">Print / Save PDF</button>
+  <button onclick="window.close()" style="padding:7px 14px;background:#888;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;">Close</button>
+  <span style="font-size:12px;color:#666;">Press Ctrl+P to save as PDF</span>
+</div>
+<div class="page">
+  <div class="header-top">
+    <div>
+      {% if company.logo %}
+      <img src="{{ company.logo.url }}" style="height:55px;max-width:120px;object-fit:contain;" alt="logo"/>
+      {% else %}
+      <div style="width:55px;height:55px;background:#1a3a5c;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:16px;border:3px solid #c0922c;">
+        {{ company.name|slice:":3"|upper }}
+      </div>
+      {% endif %}
+    </div>
+    <div class="company-info">
+      <div class="company-name">{{ company.name }}</div>
+      <div style="font-size:10px;color:#333;max-width:320px;line-height:1.5;">{{ company.address }}</div>
+      <div style="font-size:10px;">GSTIN : <strong>{{ company.gst_no|default:"N/A" }}</strong></div>
+      <div style="font-size:10px;">{% if company.telephone %}Tel: {{ company.telephone }} | {% endif %}{% if company.mobile %}Mob: {{ company.mobile }} | {% endif %}{{ company.email }}</div>
+      {% if company.website %}<div style="font-size:10px;">Website: {{ company.website }}</div>{% endif %}
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:10px;color:#555;">Invoice No</div>
+      <div style="font-weight:700;font-size:13px;">{{ invoice.invoice_number }}</div>
+      <div style="font-size:10px;color:#555;margin-top:3px;">Dated</div>
+      <div style="font-weight:700;">{{ invoice.invoice_date|date:"d-M-Y" }}</div>
+      <div style="font-size:10px;color:#555;margin-top:3px;">Client Code</div>
+      <div style="font-weight:600;font-size:11px;">{{ invoice.client.client_code }}</div>
+    </div>
+  </div>
+
+  <div class="invoice-title">INVOICE</div>
+
+  <div class="parties">
+    <div class="party-box">
+      <div class="party-title">Buyer (Bill To)</div>
+      <div class="party-name">{{ invoice.client.vendor_name }}</div>
+      <div class="party-detail">
+        {{ invoice.client.billing_address1 }}<br/>
+        {{ invoice.client.billing_city }}, {{ invoice.client.billing_state }} - {{ invoice.client.billing_pin }}<br/>
+        {% if invoice.client.gst_no %}GSTIN: {{ invoice.client.gst_no }}<br/>{% endif %}
+        {% if invoice.client.billing_contact_no %}Contact: {{ invoice.client.billing_contact_no }}{% endif %}
+      </div>
+    </div>
+    <div class="party-box">
+      <div class="party-title">Consignee (Ship To)</div>
+      <div class="party-name">{{ invoice.client.shipping_name|default:invoice.client.vendor_name }}</div>
+      <div class="party-detail">
+        {{ invoice.client.shipping_address1|default:invoice.client.billing_address1 }}<br/>
+        {{ invoice.client.shipping_city|default:invoice.client.billing_city }}, {{ invoice.client.shipping_state|default:invoice.client.billing_state }} - {{ invoice.client.shipping_pin|default:invoice.client.billing_pin }}
+      </div>
+    </div>
+  </div>
+
+  <div class="meta-row">
+    <div class="meta-cell"><div class="meta-label">Buyer Order No.</div><div class="meta-val">{{ invoice.buyer_order_no|default:"-" }}</div></div>
+    <div class="meta-cell"><div class="meta-label">PO Date</div><div class="meta-val">{% if invoice.buyer_order_date %}{{ invoice.buyer_order_date|date:"d-M-Y" }}{% else %}-{% endif %}</div></div>
+    <div class="meta-cell"><div class="meta-label">Due Date</div><div class="meta-val">{% if invoice.due_date %}{{ invoice.due_date|date:"d-M-Y" }}{% else %}-{% endif %}</div></div>
+    <div class="meta-cell"><div class="meta-label">Dispatch Through</div><div class="meta-val">{{ invoice.dispatch_through|default:"-" }}</div></div>
+  </div>
+
+  <table class="items">
+    <thead><tr>
+      <th style="width:26px;">Sl.</th>
+      <th>Description of Goods / Services</th>
+      <th style="width:60px;">HSN/SAC</th>
+      <th style="width:38px;">Unit</th>
+      <th style="width:46px;">Qty</th>
+      <th style="width:72px;">Rate (Rs.)</th>
+      <th style="width:50px;">Disc%</th>
+      <th style="width:82px;">Amount (Rs.)</th>
+    </tr></thead>
+    <tbody>
+    {% for item in invoice.items.all %}
+    <tr>
+      <td class="c">{{ item.sl_no }}</td>
+      <td>{{ item.description }}</td>
+      <td class="c">{{ item.hsn_sac|default:"" }}</td>
+      <td class="c">{{ item.unit }}</td>
+      <td class="r">{{ item.quantity|floatformat:0 }}</td>
+      <td class="r">{{ item.rate|floatformat:2 }}</td>
+      <td class="c">{{ item.discount_pct|floatformat:0 }}%</td>
+      <td class="r" style="font-weight:600;">{{ item.amount|floatformat:2 }}</td>
+    </tr>
+    {% endfor %}
+    <tr style="font-weight:700;background:#f0f0f0;">
+      <td colspan="7" style="text-align:right;padding-right:8px;">Subtotal</td>
+      <td class="r">{{ invoice.subtotal|floatformat:2 }}</td>
+    </tr>
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <div>
+      <table class="gst-tbl">
+        <thead>
+          {% if invoice.gst_type == 'cgst_sgst' %}
+          <tr><th>Taxable Amt</th><th>CGST%</th><th>CGST Rs.</th><th>SGST%</th><th>SGST Rs.</th></tr>
+          {% elif invoice.gst_type == 'igst' %}
+          <tr><th>Taxable Amt</th><th>IGST%</th><th>IGST Rs.</th></tr>
+          {% else %}
+          <tr><th>Taxable Amount</th></tr>
+          {% endif %}
+        </thead>
+        <tbody>
+          {% if invoice.gst_type == 'cgst_sgst' %}
+          <tr><td>{{ invoice.taxable_amount|floatformat:2 }}</td><td>9%</td><td>{{ invoice.cgst_amount|floatformat:2 }}</td><td>9%</td><td>{{ invoice.sgst_amount|floatformat:2 }}</td></tr>
+          {% elif invoice.gst_type == 'igst' %}
+          <tr><td>{{ invoice.taxable_amount|floatformat:2 }}</td><td>18%</td><td>{{ invoice.igst_amount|floatformat:2 }}</td></tr>
+          {% else %}
+          <tr><td>{{ invoice.taxable_amount|floatformat:2 }}</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+    <div class="tot-box">
+      {% if invoice.gst_type == 'cgst_sgst' %}
+      <div class="tot-row"><span>CGST</span><span>Rs.{{ invoice.cgst_amount|floatformat:2 }}</span></div>
+      <div class="tot-row"><span>SGST</span><span>Rs.{{ invoice.sgst_amount|floatformat:2 }}</span></div>
+      {% elif invoice.gst_type == 'igst' %}
+      <div class="tot-row"><span>IGST</span><span>Rs.{{ invoice.igst_amount|floatformat:2 }}</span></div>
+      {% endif %}
+      <div class="tot-row"><span>Total GST</span><span>Rs.{{ invoice.total_gst|floatformat:2 }}</span></div>
+      <div class="tot-row grand"><span>TOTAL AMOUNT</span><span>Rs.{{ invoice.grand_total|floatformat:2 }}</span></div>
+    </div>
+  </div>
+
+  <div class="words-box"><strong>Amount (in words):</strong> Rupees {{ invoice.grand_total|floatformat:0 }} only</div>
+
+  <div class="footer">
+    <div>
+      <div class="terms-box">
+        <div class="terms-title">Declaration &amp; Terms:</div>
+        <p style="font-style:italic;font-size:10px;margin-bottom:4px;">We declare this invoice shows the actual price.</p>
+        {% for line in invoice.terms_conditions.splitlines %}<p style="font-size:10px;margin-bottom:1px;">{{ line }}</p>{% endfor %}
+      </div>
+    </div>
+    <div>
+      {% if company.beneficiary_name %}
+      <div class="bank-box" style="margin-bottom:3mm;">
+        <strong>Banking Details:</strong><br/>
+        Beneficiary: {{ company.beneficiary_name }}<br/>
+        A/C No: {{ company.beneficiary_account }}<br/>
+        IFSC: {{ company.beneficiary_ifsc }}<br/>
+        Branch: {{ company.beneficiary_branch }}
+      </div>
+      {% endif %}
+      <div class="sign-area">
+        <div style="font-size:10px;color:#555;">For {{ company.name }}</div>
+        <div class="sign-line"></div>
+        <div style="font-size:10px;font-weight:600;margin-top:3px;">Authorised Signatory</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:4mm;font-size:9px;color:#aaa;border-top:1px dashed #ccc;padding-top:3mm;">
+    Customer's Seal and Signature        For {{ company.name }} - Authorised Signatory
+  </div>
+</div>
+</body>
+</html>

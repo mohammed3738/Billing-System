@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Clients — TFS{% endblock %}
+{% block page_title %}Clients{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <form class="search-wrap">
+    <i class="fa fa-magnifying-glass"></i>
+    <input type="text" name="q" value="{{ q }}" class="search-box" placeholder="Search clients..."/>
+  </form>
+  <a href="{% url 'clients:create' %}" class="btn-accent"><i class="fa fa-plus me-1"></i>Add Client</a>
+</div>
+<div class="card-dark" style="padding:0;overflow:hidden;">
+  <table class="table-dark-custom">
+    <thead><tr>
+      <th>Code</th><th>Name</th><th>GST No</th><th>City</th><th>Contact</th><th>WhatsApp</th><th>Payment Terms</th><th>Actions</th>
+    </tr></thead>
+    <tbody>
+    {% for c in clients %}
+    <tr>
+      <td style="color:var(--accent);font-weight:600;">{{ c.client_code }}</td>
+      <td style="font-weight:500;">{{ c.vendor_name }}</td>
+      <td style="color:var(--text-muted);font-size:12px;">{{ c.gst_no|default:"—" }}</td>
+      <td style="font-size:13px;">{{ c.billing_city|default:"—" }}</td>
+      <td style="font-size:12px;">{{ c.billing_contact_no|default:"—" }}</td>
+      <td style="font-size:12px;color:#25d366;">{{ c.whatsapp_number|default:"—" }}</td>
+      <td><span style="background:rgba(99,102,241,.15);color:var(--accent);padding:3px 8px;border-radius:4px;font-size:11px;">{{ c.payment_terms }}</span></td>
+      <td>
+        <div class="d-flex gap-1">
+          <a href="{% url 'clients:detail' c.pk %}" class="btn-ghost" style="padding:5px 9px;font-size:12px;"><i class="fa fa-eye"></i></a>
+          <a href="{% url 'clients:edit' c.pk %}" class="btn-ghost" style="padding:5px 9px;font-size:12px;"><i class="fa fa-pencil"></i></a>
+        </div>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);">
+      No clients yet. <a href="{% url 'clients:create' %}" style="color:var(--accent);">Add one →</a>
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

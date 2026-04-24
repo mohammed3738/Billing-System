@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — TFS{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block content %}
+<div style="max-width:860px;">
+<form method="post">
+{% csrf_token %}
+<!-- Basic Info -->
+<div class="card-dark mb-4">
+  <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);"><i class="fa fa-user me-2"></i>Basic Information</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+    <div class="col-span-2" style="grid-column:span 2;">
+      <label class="form-label">Company / Vendor Name *</label>
+      {{ form.vendor_name }}
+    </div>
+    <div>
+      <label class="form-label">GST Number</label>
+      {{ form.gst_no }}
+    </div>
+    <div>
+      <label class="form-label">Payment Terms</label>
+      {{ form.payment_terms }}
+    </div>
+    <div>
+      <label class="form-label">Term in Days</label>
+      {{ form.term_in_days }}
+    </div>
+    <div>
+      <label class="form-label">WhatsApp Number</label>
+      {{ form.whatsapp_number }}
+    </div>
+  </div>
+</div>
+
+<!-- Billing Address -->
+<div class="card-dark mb-4">
+  <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);"><i class="fa fa-location-dot me-2"></i>Billing Address</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div><label class="form-label">Address Line 1</label>{{ form.billing_address1 }}</div>
+    <div><label class="form-label">Address Line 2</label>{{ form.billing_address2 }}</div>
+    <div><label class="form-label">City</label>{{ form.billing_city }}</div>
+    <div><label class="form-label">PIN Code</label>{{ form.billing_pin }}</div>
+    <div><label class="form-label">State</label>{{ form.billing_state }}</div>
+    <div><label class="form-label">Country</label>{{ form.billing_country }}</div>
+    <div><label class="form-label">Contact Person</label>{{ form.billing_contact_person }}</div>
+    <div><label class="form-label">Contact Number</label>{{ form.billing_contact_no }}</div>
+    <div style="grid-column:span 2;"><label class="form-label">Email</label>{{ form.billing_email }}</div>
+  </div>
+</div>
+
+<!-- Shipping Address -->
+<div class="card-dark mb-4">
+  <div class="d-flex justify-content-between align-items-center" style="margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+    <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;"><i class="fa fa-truck me-2"></i>Shipping Address</div>
+    <button type="button" class="btn-ghost" style="font-size:12px;" onclick="copyBilling()"><i class="fa fa-copy me-1"></i>Same as Billing</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div style="grid-column:span 2;"><label class="form-label">Shipping Name</label>{{ form.shipping_name }}</div>
+    <div><label class="form-label">Address Line 1</label>{{ form.shipping_address1 }}</div>
+    <div><label class="form-label">Address Line 2</label>{{ form.shipping_address2 }}</div>
+    <div><label class="form-label">City</label>{{ form.shipping_city }}</div>
+    <div><label class="form-label">PIN Code</label>{{ form.shipping_pin }}</div>
+    <div><label class="form-label">State</label>{{ form.shipping_state }}</div>
+    <div><label class="form-label">Country</label>{{ form.shipping_country }}</div>
+    <div><label class="form-label">Contact Person</label>{{ form.shipping_contact_person }}</div>
+    <div><label class="form-label">Contact Number</label>{{ form.shipping_contact_no }}</div>
+  </div>
+</div>
+
+<div class="d-flex gap-2">
+  <button type="submit" class="btn-accent"><i class="fa fa-floppy-disk me-1"></i>Save Client</button>
+  <a href="{% url 'clients:list' %}" class="btn-ghost">Cancel</a>
+</div>
+</form>
+</div>
+
+<script>
+function copyBilling() {
+  const map = {
+    'id_billing_address1': 'id_shipping_address1',
+    'id_billing_address2': 'id_shipping_address2',
+    'id_billing_city': 'id_shipping_city',
+    'id_billing_pin': 'id_shipping_pin',
+    'id_billing_state': 'id_shipping_state',
+    'id_billing_country': 'id_shipping_country',
+    'id_vendor_name': 'id_shipping_name',
+  };
+  for (const [src, dst] of Object.entries(map)) {
+    const s = document.getElementById(src), d = document.getElementById(dst);
+    if (s && d) d.value = s.value;
+  }
+}
+</script>
+{% endblock %}

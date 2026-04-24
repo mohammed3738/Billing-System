@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}{{ invoice.invoice_number }} — TFS{% endblock %}
+{% block page_title %}{{ invoice.invoice_number }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <span class="badge-status badge-{{ invoice.status }}" style="font-size:13px;padding:6px 14px;">{{ invoice.get_status_display }}</span>
+  <div class="d-flex gap-2">
+    {% if invoice.status == 'draft' %}
+    <a href="{% url 'invoices:mark_sent' invoice.pk %}" class="btn-ghost" onclick="return confirm('Mark as sent?')">
+      <i class="fa fa-paper-plane me-1"></i>Mark Sent
+    </a>
+    {% endif %}
+    <a href="{% url 'invoices:edit' invoice.pk %}" class="btn-ghost"><i class="fa fa-pencil me-1"></i>Edit</a>
+    <a href="{% url 'invoices:print' invoice.pk %}" target="_blank" class="btn-ghost"><i class="fa fa-print me-1"></i>Print</a>
+    {% if invoice.client.whatsapp_number %}
+    <a href="{% url 'invoices:whatsapp' invoice.pk %}" class="btn-accent" style="background:#25d366;border:none;" target="_blank">
+      <i class="fa-brands fa-whatsapp me-1"></i>WhatsApp
+    </a>
+    {% endif %}
+    <a href="{% url 'invoices:delete' invoice.pk %}" class="btn-ghost" style="color:var(--danger);" onclick="return confirm('Cancel this invoice?')">
+      <i class="fa fa-ban me-1"></i>Cancel
+    </a>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 340px;gap:20px;">
+  <!-- Invoice preview card -->
+  <div>
+    <div class="card-dark mb-4" style="padding:0;overflow:hidden;">
+      <!-- Header -->
+      <div style="background:rgba(99,102,241,.08);padding:16px 20px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:start;">
+          <div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;">INVOICE</div>
+            <div style="font-size:13px;color:var(--text-muted);">{{ invoice.invoice_number }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:12px;color:var(--text-muted);">Date</div>
+            <div style="font-weight:600;">{{ invoice.invoice_date|date:"d-M-Y" }}</div>
+            {% if invoice.due_date %}
+            <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Due</div>
+            <div style="font-weight:600;{% if invoice.status == 'overdue' %}color:var(--danger);{% endif %}">{{ invoice.due_date|date:"d-M-Y" }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <!-- Bill to / Ship to -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);">
+        <div style="padding:14px 16px;border-right:1px solid var(--border);">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Bill To</div>
+          <div style="font-weight:600;">{{ invoice.client.vendor_name }}</div>
+          <div style="font-size:12px;color:var(--text-secondary);">{{ invoice.client.billing_address1 }}</div>
+          <div style="font-size:12px;color:var(--text-secondary);">{{ invoice.client.billing_city }}, {{ invoice.client.billing_state }} {{ invoice.client.billing_pin }}</div>
+          {% if invoice.client.gst_no %}<div style="font-size:12px;color:var(--text-muted);">GSTIN: {{ invoice.client.gst_no }}</div>{% endif %}
+        </div>
+        <div style="padding:14px 16px;">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Ship To</div>
+          <div style="font-weight:600;">{{ invoice.client.shipping_name|default:invoice.client.vendor_name }}</div>
+          <div style="font-size:12px;color:var(--text-secondary);">{{ invoice.client.shipping_address1|default:invoice.client.billing_address1 }}</div>
+          <div style="font-size:12px;color:var(--text-secondary);">{{ invoice.client.shipping_city|default:invoice.client.billing_city }}, {{ invoice.client.shipping_state|default:invoice.client.billing_state }}</div>
+        </div>
+      </div>
+      <!-- Items table -->
+      <div style="overflow-x:auto;">
+        <table class="table-dark-custom">
+          <thead><tr>
+            <th style="width:32px;">#</th>
+            <th>Description</th>
+            <th>HSN/SAC</th>
+            <th>Qty</th>
+            <th>Rate</th>
+            <th>Disc%</th>
+            <th>GST%</th>
+            <th style="text-align:right;">Amount</th>
+          </tr></thead>
+          <tbody>
+          {% for item in invoice.items.all %}
+          <tr>
+            <td style="color:var(--text-muted);">{{ item.sl_no }}</td>
+            <td>{{ item.description }}</td>
+            <td style="color:var(--text-muted);">{{ item.hsn_sac|default:"—" }}</td>
+            <td>{{ item.quantity }} {{ item.unit }}</td>
+            <td>₹{{ item.rate|floatformat:2 }}</td>
+            <td>{{ item.discount_pct|floatformat:0 }}%</td>
+            <td>{{ item.gst_rate }}%</td>
+            <td style="text-align:right;font-weight:600;">₹{{ item.amount|floatformat:2 }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <!-- Totals -->
+      <div style="display:flex;justify-content:flex-end;padding:14px 16px;border-top:1px solid var(--border);">
+        <table style="width:280px;font-size:13px;">
+          <tr><td style="color:var(--text-muted);padding:4px 0;">Subtotal</td><td style="text-align:right;">₹{{ invoice.subtotal|floatformat:2 }}</td></tr>
+          {% if invoice.gst_type == 'cgst_sgst' %}
+          <tr><td style="color:var(--text-muted);padding:4px 0;">CGST</td><td style="text-align:right;">₹{{ invoice.cgst_amount|floatformat:2 }}</td></tr>
+          <tr><td style="color:var(--text-muted);padding:4px 0;">SGST</td><td style="text-align:right;">₹{{ invoice.sgst_amount|floatformat:2 }}</td></tr>
+          {% elif invoice.gst_type == 'igst' %}
+          <tr><td style="color:var(--text-muted);padding:4px 0;">IGST</td><td style="text-align:right;">₹{{ invoice.igst_amount|floatformat:2 }}</td></tr>
+          {% endif %}
+          <tr><td colspan="2"><hr style="border-color:var(--border);margin:6px 0;"/></td></tr>
+          <tr><td style="font-weight:700;font-size:16px;padding:4px 0;">Grand Total</td>
+              <td style="text-align:right;font-weight:700;font-size:18px;color:var(--accent);">₹{{ invoice.grand_total|floatformat:2 }}</td></tr>
+          <tr><td style="color:var(--success);padding:4px 0;">Paid</td><td style="text-align:right;color:var(--success);">₹{{ invoice.amount_paid|floatformat:2 }}</td></tr>
+          <tr><td style="color:var(--warning);padding:4px 0;font-weight:600;">Balance Due</td>
+              <td style="text-align:right;font-weight:700;color:var(--warning);">₹{{ invoice.balance_due|floatformat:2 }}</td></tr>
+        </table>
+      </div>
+      {% if invoice.terms_conditions %}
+      <div style="padding:12px 16px;border-top:1px solid var(--border);">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;">TERMS & CONDITIONS</div>
+        <div style="font-size:12px;color:var(--text-secondary);white-space:pre-line;">{{ invoice.terms_conditions }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: Payment tracking -->
+  <div>
+    <!-- Payment summary -->
+    <div class="card-dark mb-4">
+      <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;margin-bottom:14px;">Payment Tracking</div>
+      <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:12px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:12px;color:var(--text-muted);">Invoice Total</span>
+          <span style="font-weight:600;">₹{{ invoice.grand_total|floatformat:2 }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:12px;color:var(--success);">Paid</span>
+          <span style="color:var(--success);font-weight:600;">₹{{ invoice.amount_paid|floatformat:2 }}</span>
+        </div>
+        <div style="background:rgba(255,255,255,.07);border-radius:4px;height:6px;margin-bottom:8px;">
+          {% if invoice.grand_total > 0 %}
+          <div style="height:6px;border-radius:4px;background:var(--success);width:{% widthratio invoice.amount_paid invoice.grand_total 100 %}%;"></div>
+          {% endif %}
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:12px;color:var(--warning);">Balance Due</span>
+          <span style="color:var(--warning);font-weight:700;">₹{{ invoice.balance_due|floatformat:2 }}</span>
+        </div>
+      </div>
+
+      <!-- Payment history -->
+      {% if payments %}
+      <div style="margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Payment History</div>
+        {% for p in payments %}
+        <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--success);">₹{{ p.amount|floatformat:2 }}</div>
+            <div style="font-size:11px;color:var(--text-muted);">{{ p.payment_date|date:"d M Y" }} · {{ p.get_mode_display }}</div>
+            {% if p.reference_no %}<div style="font-size:11px;color:var(--text-muted);">Ref: {{ p.reference_no }}</div>{% endif %}
+          </div>
+          <form method="post" action="{% url 'invoices:delete_payment' invoice.pk p.pk %}" onsubmit="return confirm('Delete payment?')">
+            {% csrf_token %}
+            <button type="submit" style="background:none;border:none;color:var(--text-muted);cursor:pointer;" title="Delete">
+              <i class="fa fa-trash" style="font-size:12px;"></i>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Add payment form -->
+      {% if invoice.balance_due > 0 %}
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Record Payment</div>
+        <form method="post" action="{% url 'invoices:add_payment' invoice.pk %}">
+          {% csrf_token %}
+          <div class="mb-2">
+            <input type="date" name="payment_date" class="form-control" value="{{ today|date:'Y-m-d' }}" required/>
+          </div>
+          <div class="mb-2">
+            <input type="number" name="amount" class="form-control" placeholder="Amount ₹" step="0.01"
+              value="{{ invoice.balance_due|floatformat:2 }}" required/>
+          </div>
+          <div class="mb-2">
+            <select name="mode" class="form-select">
+              <option value="cash">Cash</option>
+              <option value="cheque">Cheque</option>
+              <option value="neft">NEFT/RTGS</option>
+              <option value="upi">UPI</option>
+              <option value="bank_transfer">Bank Transfer</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <input type="text" name="reference_no" class="form-control" placeholder="Ref / UTR / Cheque No."/>
+          </div>
+          <button type="submit" class="btn-accent w-100"><i class="fa fa-circle-check me-1"></i>Record Payment</button>
+        </form>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:12px;color:var(--success);font-weight:600;">
+        <i class="fa fa-circle-check me-2" style="font-size:18px;"></i>Fully Paid
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Client info -->
+    <div class="card-dark">
+      <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;margin-bottom:12px;">Client Info</div>
+      <div style="font-size:13.5px;font-weight:600;">{{ invoice.client.vendor_name }}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">{{ invoice.client.client_code }}</div>
+      {% if invoice.client.billing_contact_no %}<div style="font-size:12px;color:var(--text-secondary);"><i class="fa fa-phone me-2"></i>{{ invoice.client.billing_contact_no }}</div>{% endif %}
+      {% if invoice.client.billing_email %}<div style="font-size:12px;color:var(--text-secondary);"><i class="fa fa-envelope me-2"></i>{{ invoice.client.billing_email }}</div>{% endif %}
+      {% if invoice.client.whatsapp_number %}<div style="font-size:12px;color:#25d366;"><i class="fa-brands fa-whatsapp me-2"></i>{{ invoice.client.whatsapp_number }}</div>{% endif %}
+      <a href="{% url 'clients:detail' invoice.client.pk %}" style="font-size:12px;color:var(--accent);text-decoration:none;margin-top:8px;display:block;">View client profile →</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Invoicing{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block extra_css %}
+<style>
+.item-tbl{width:100%;border-collapse:collapse;table-layout:fixed;}
+.item-tbl th{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;padding:8px 4px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border);}
+.item-tbl td{padding:8px 3px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;}
+.item-tbl tr:last-child td{border-bottom:none;}
+.fc-sm{font-size:12.5px;padding:8px 8px;min-height:40px;}
+.rm-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;padding:3px 6px;border-radius:4px;font-size:12px;}
+.rm-btn:hover{color:var(--danger);background:rgba(239,68,68,.1);}
+.total-panel td{padding:5px 6px;font-size:13px;}
+</style>
+{% endblock %}
+{% block content %}
+<form id="invForm" method="post" onsubmit="return submitInvoice()">
+{% csrf_token %}
+<input type="hidden" name="items_json" id="items_json"/>
+<input type="hidden" name="client_id" id="client_id_hidden" value="{{ invoice.client_id|default:'' }}"/>
+<input type="hidden" name="gst_type" id="gst_type_hidden" value="{{ invoice.gst_type|default:'cgst_sgst' }}"/>
+
+<div style="display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start;">
+<div>
+
+<!-- CLIENT -->
+<div class="card-dark mb-3">
+  <div class="sec-hdr"><i class="fa fa-user me-2"></i>Client / Buyer</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div style="position:relative;">
+      <label class="form-label">Client Name *</label>
+      <input type="text" id="clientSearch" class="form-control" placeholder="Search or type client name…"
+        value="{{ invoice.client.vendor_name|default:'' }}" autocomplete="off"/>
+      <div id="clientDD" class="autocomplete-list" style="display:none;top:100%;left:0;"></div>
+      <div style="margin-top:5px;font-size:10.5px;color:var(--text-muted);">
+        <span id="clientInfo"></span>
+        <a href="{% url 'clients:create' %}" target="_blank" style="color:var(--accent);text-decoration:none;">+ New Client</a>
+      </div>
+    </div>
+    <div>
+      <label class="form-label">Client GSTIN</label>
+      <input type="text" id="clientGST" class="form-control" placeholder="Auto-filled" readonly/>
+    </div>
+    <div>
+      <label class="form-label">Billing Address</label>
+      <input type="text" id="clientAddr" class="form-control" placeholder="Auto-filled" readonly/>
+    </div>
+    <div>
+      <label class="form-label">City / State / PIN</label>
+      <input type="text" id="clientCity" class="form-control" placeholder="Auto-filled" readonly/>
+    </div>
+  </div>
+</div>
+
+<!-- INVOICE DETAILS -->
+<div class="card-dark mb-3">
+  <div class="sec-hdr"><i class="fa fa-file-invoice me-2"></i>Quotation Details</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+    <div>
+      <label class="form-label">Quotation Date *</label>
+      <input type="date" name="invoice_date" class="form-control" value="{{ invoice.quotation_date|date:'Y-m-d'|default:today }}" required/>
+    </div>
+    <div>
+      <label class="form-label">Due Date</label>
+      <input type="date" name="due_date" class="form-control" value="{{ invoice.due_date|date:'Y-m-d'|default:'' }}"/>
+    </div>
+    <div>
+      <label class="form-label">Buyer Order No.</label>
+      <input type="text" name="buyer_order_no" class="form-control" placeholder="PO / Work Order" value="{{ invoice.buyer_order_no|default:'' }}"/>
+    </div>
+    <div>
+      <label class="form-label">PO Date</label>
+      <input type="date" name="buyer_order_date" class="form-control" value="{{ invoice.buyer_order_date|date:'Y-m-d'|default:'' }}"/>
+    </div>
+    <div>
+      <label class="form-label">Dispatch Through</label>
+      <input type="text" name="dispatch_through" class="form-control" placeholder="Courier / Self" value="{{ invoice.dispatch_through|default:'' }}"/>
+    </div>
+  </div>
+</div>
+
+<!-- GST TOGGLE -->
+<div class="card-dark mb-3">
+  <div class="sec-hdr"><i class="fa fa-percent me-2"></i>GST Type
+    <span id="gstAutoBadge" class="gst-auto-badge" style="display:none;"><i class="fa fa-magic me-1"></i>Auto-detected</span>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <button type="button" class="gst-btn" id="btn_cgst_sgst" onclick="setGST('cgst_sgst')">
+      <i class="fa fa-building me-1"></i>CGST + SGST <span style="font-size:10.5px;opacity:.7;">(Intra-State)</span>
+    </button>
+    <button type="button" class="gst-btn" id="btn_igst" onclick="setGST('igst')">
+      <i class="fa fa-map me-1"></i>IGST <span style="font-size:10.5px;opacity:.7;">(Inter-State)</span>
+    </button>
+    <button type="button" class="gst-btn" id="btn_exempt" onclick="setGST('exempt')">
+      <i class="fa fa-ban me-1"></i>Exempt
+    </button>
+  </div>
+  <div id="gstExplain" style="margin-top:8px;font-size:11px;color:var(--text-muted);"></div>
+</div>
+
+<!-- LINE ITEMS -->
+<div class="card-dark mb-3" style="padding:0;overflow:visible;">
+  <div class="d-flex justify-content-between align-items-center" style="padding:12px 14px;border-bottom:1px solid var(--border);">
+    <div class="sec-hdr" style="margin:0;border:none;padding:0;"><i class="fa fa-list me-2"></i>Quotation Items</div>
+    <button type="button" class="btn-accent" onclick="addRow()" style="font-size:12px;padding:5px 12px;"><i class="fa fa-plus"></i>Add Row</button>
+  </div>
+  <div style="overflow:visible;">
+    <table class="item-tbl" id="itemTable">
+      <thead><tr>
+        <th style="width:26px;">#</th>
+        <th style="width:190px;">Product Name</th>
+        <th style="width:70px;">HSN/SAC</th>
+        <th style="width:54px;">Unit</th>
+        <th style="width:56px;">Qty</th>
+        <th style="width:100px;">Rate (₹)</th>
+        <th style="width:56px;">Disc%</th>
+        <th style="width:56px;">GST%</th>
+        <th style="width:105px;">Amount (₹)</th>
+        <th style="width:28px;"></th>
+      </tr></thead>
+      <tbody id="itemBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TERMS -->
+<div class="card-dark mb-3">
+  <div class="sec-hdr"><i class="fa fa-file-lines me-2"></i>Terms &amp; Notes</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div>
+      <label class="form-label">Terms &amp; Conditions</label>
+      <textarea name="terms_conditions" class="form-control" rows="5">{{ invoice.terms_conditions|default:"1. No Warranty by physical Damage &amp; Burnt Goods.\n2. If Cheque is Dishonoured Rs. 500/- will be charged.\n3. Any complain regarding goods received must be made within 24 hrs.\n4. Received Above Goods in good condition." }}</textarea>
+    </div>
+    <div>
+      <label class="form-label">Internal Notes</label>
+      <textarea name="notes" class="form-control" rows="5" placeholder="Not printed on invoice">{{ invoice.notes|default:'' }}</textarea>
+    </div>
+  </div>
+</div>
+</div><!-- end left col -->
+
+<!-- RIGHT: SUMMARY -->
+<div style="position:sticky;top:68px;">
+  <div class="card-dark mb-3">
+    <div class="sec-hdr"><i class="fa fa-calculator me-2"></i>Summary</div>
+    <table style="width:100%;" class="total-panel">
+      <tr><td style="color:var(--text-muted);">Subtotal</td><td style="text-align:right;">₹<span id="s_sub">0.00</span></td></tr>
+      <tr id="row_cgst"><td style="color:var(--text-muted);">CGST</td><td style="text-align:right;">₹<span id="s_cgst">0.00</span></td></tr>
+      <tr id="row_sgst"><td style="color:var(--text-muted);">SGST</td><td style="text-align:right;">₹<span id="s_sgst">0.00</span></td></tr>
+      <tr id="row_igst" style="display:none"><td style="color:var(--text-muted);">IGST</td><td style="text-align:right;">₹<span id="s_igst">0.00</span></td></tr>
+      <tr><td colspan="2"><hr style="border-color:var(--border);margin:6px 0;"/></td></tr>
+      <tr><td style="font-weight:700;font-size:14px;">Grand Total</td><td style="text-align:right;font-weight:700;font-size:17px;color:var(--accent);">₹<span id="s_grand">0.00</span></td></tr>
+    </table>
+  </div>
+  <div class="d-grid gap-2">
+    <button type="submit" class="btn-accent" style="padding:11px;font-size:13.5px;"><i class="fa fa-floppy-disk"></i>Save Quotation</button>
+    <a href="{% url 'quotations:list' %}" class="btn-ghost" style="justify-content:center;padding:9px;">Cancel</a>
+  </div>
+</div>
+</div><!-- end grid -->
+</form>
+
+<!-- Quick Product Modal -->
+<div id="prodModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;">
+  <div class="card-dark" style="width:380px;">
+    <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;margin-bottom:14px;">Quick Add Product</div>
+    <div class="mb-2"><label class="form-label">Name</label><input type="text" id="pm_name" class="form-control"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" class="mb-3">
+      <div><label class="form-label">Rate (₹)</label><input type="number" id="pm_rate" class="form-control" step="0.01" value="0"/></div>
+      <div><label class="form-label">HSN/SAC</label><input type="text" id="pm_hsn" class="form-control"/></div>
+      <div><label class="form-label">GST %</label>
+        <select id="pm_gst" class="form-select"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18" selected>18%</option><option value="28">28%</option></select>
+      </div>
+      <div><label class="form-label">Unit</label>
+        <select id="pm_unit" class="form-select"><option>Nos</option><option>Mtr</option><option>Kg</option><option>Ltr</option><option>Pcs</option><option>Job</option><option>Set</option></select>
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn-accent" onclick="saveQuickProduct()"><i class="fa fa-save"></i>Save &amp; Use</button>
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+const COMPANY_GST = '{{ company_gst }}';
+let items = {{ items_json|default:"[]"|safe }};
+let gstType = '{{ invoice.gst_type|default:"cgst_sgst" }}';
+let activeRowIdx = null;
+let gstAutoDetected = false;
+const UNITS = ['Nos','Mtr','Kg','Ltr','Pcs','Box','Set','Roll','Pair','Job'];
+const GST_RATES = [0,5,12,18,28];
+
+// ── GST ──────────────────────────────────────────────────────────────────────
+function setGST(type, auto=false) {
+  gstType = type;
+  document.getElementById('gst_type_hidden').value = type;
+  document.querySelectorAll('.gst-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('btn_' + type);
+  if(btn) btn.classList.add('active');
+  document.getElementById('row_cgst').style.display = type==='igst' ? 'none' : '';
+  document.getElementById('row_sgst').style.display = type==='igst' ? 'none' : '';
+  document.getElementById('row_igst').style.display = type==='igst' ? '' : 'none';
+  const badge = document.getElementById('gstAutoBadge');
+  const explain = document.getElementById('gstExplain');
+  if(auto) {
+    badge.style.display = 'inline';
+    explain.textContent = type==='igst'
+      ? 'IGST auto-selected: seller and buyer states differ.'
+      : 'CGST+SGST auto-selected: seller and buyer are in the same state.';
+  } else {
+    badge.style.display = 'none';
+    explain.textContent = '';
+  }
+  recalc();
+}
+
+function autoDetectGST(clientGST) {
+  if(!COMPANY_GST || !clientGST) return;
+  const sellerCode = COMPANY_GST.substring(0,2).toUpperCase();
+  const buyerCode  = clientGST.substring(0,2).toUpperCase();
+  if(sellerCode && buyerCode) {
+    const suggestedType = (sellerCode === buyerCode) ? 'cgst_sgst' : 'igst';
+    setGST(suggestedType, true);
+  }
+}
+
+// ── CLIENT ───────────────────────────────────────────────────────────────────
+let clientTimer;
+document.getElementById('clientSearch').addEventListener('input', function(){
+  clearTimeout(clientTimer);
+  const q = this.value.trim();
+  if(!q){ hideClientDD(); return; }
+  clientTimer = setTimeout(()=>{
+    fetch(`/clients/api/search/?q=${encodeURIComponent(q)}`)
+      .then(r=>r.json()).then(d=>renderClientDD(d.results, q));
+  }, 230);
+});
+
+function renderClientDD(results, q) {
+  const dd = document.getElementById('clientDD');
+  const rows = results.map(c=>`<div class="ac-item" onclick="selectClient(${c.id})">
+    <div>${c.name}</div><div class="sub">${c.code} · ${c.gst||'No GST'} · ${c.city||''}</div>
+  </div>`).join('');
+  const createRow = `<div class="ac-item" style="border-top:1px solid var(--border);color:var(--accent);" onclick="createClientQuick('${escJs(q)}')">
+    <i class="fa fa-plus me-1"></i>Create "${q}"
+  </div>`;
+  dd.innerHTML = rows + createRow;
+  dd.style.display = 'block';
+}
+function hideClientDD(){ document.getElementById('clientDD').style.display='none'; }
+
+function selectClient(id) {
+  fetch(`/clients/api/${id}/`).then(r=>r.json()).then(c=>{
+    document.getElementById('clientSearch').value = c.vendor_name;
+    document.getElementById('client_id_hidden').value = c.id;
+    document.getElementById('clientGST').value = c.gst_no;
+    document.getElementById('clientAddr').value = c.billing_address1 + (c.billing_address2 ? ', '+c.billing_address2 : '');
+    document.getElementById('clientCity').value = `${c.billing_city} / ${c.billing_state} - ${c.billing_pin}`;
+    document.getElementById('clientInfo').innerHTML = `<span style="color:var(--success)"><i class="fa fa-check me-1"></i>${c.client_code}</span>&nbsp;`;
+    hideClientDD();
+    autoDetectGST(c.gst_no);
+  });
+}
+
+function createClientQuick(name) {
+  fetch('/clients/api/get-or-create/', {method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
+    body:JSON.stringify({vendor_name:name})
+  }).then(r=>r.json()).then(c=>{
+    document.getElementById('client_id_hidden').value = c.id;
+    document.getElementById('clientSearch').value = c.vendor_name;
+    document.getElementById('clientInfo').innerHTML = `<span style="color:var(--warning)"><i class="fa fa-star me-1"></i>${c.client_code} (new)</span>&nbsp;`;
+    hideClientDD();
+  });
+}
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#clientSearch') && !e.target.closest('#clientDD')) hideClientDD();
+});
+
+// ── ITEMS ────────────────────────────────────────────────────────────────────
+function renderRows() {
+  const tbody = document.getElementById('itemBody');
+  if(!items.length){ addRow(); return; }
+  tbody.innerHTML = items.map((it,i)=>buildRow(it,i)).join('');
+  recalc();
+}
+
+function buildRow(it, i) {
+  const unitOpts = UNITS.map(u=>`<option ${u===it.unit?'selected':''}>${u}</option>`).join('');
+  const gstOpts  = GST_RATES.map(g=>`<option value="${g}" ${g==it.gst_rate?'selected':''}>${g}%</option>`).join('');
+  return `<tr id="row_${i}">
+    <td style="color:var(--text-muted);text-align:center;font-size:11px;">${i+1}</td>
+    <td>
+      <input type="text" class="form-control fc-sm prod-search" placeholder="Type product name"
+        value="${escH(it.description||'')}" oninput="handleProductInput(${i},this.value)"
+        onfocus="initProdSearch(${i},this)" id="desc_${i}" data-row-index="${i}" autocomplete="off"/>
+    </td>
+    <td><input type="text" class="form-control fc-sm" value="${escH(it.hsn_sac||'')}" placeholder="HSN" oninput="updateItem(${i},'hsn_sac',this.value)"/></td>
+    <td><select class="form-select fc-sm" onchange="updateItem(${i},'unit',this.value)">${unitOpts}</select></td>
+    <td><input type="number" class="form-control fc-sm" value="${it.quantity||1}" min="0" step="0.01" oninput="updateItem(${i},'quantity',parseFloat(this.value)||0)"/></td>
+    <td><input type="number" class="form-control fc-sm" value="${it.rate||0}" min="0" step="0.01" oninput="updateItem(${i},'rate',parseFloat(this.value)||0)"/></td>
+    <td><input type="number" class="form-control fc-sm" value="${it.discount_pct||0}" min="0" max="100" step="0.01" oninput="updateItem(${i},'discount_pct',parseFloat(this.value)||0)"/></td>
+    <td><select class="form-select fc-sm" onchange="updateItem(${i},'gst_rate',parseInt(this.value))">${gstOpts}</select></td>
+    <td style="text-align:right;font-weight:600;font-size:13px;" id="amt_${i}">₹${fmt(calcAmt(it))}</td>
+    <td><button type="button" class="rm-btn" onclick="removeRow(${i})"><i class="fa fa-xmark"></i></button></td>
+  </tr>`;
+}
+
+function calcAmt(it){ return (parseFloat(it.quantity)||0)*(parseFloat(it.rate)||0)*(1-(parseFloat(it.discount_pct)||0)/100); }
+function addRow(){ items.push({description:'',hsn_sac:'',unit:'Nos',quantity:1,rate:0,discount_pct:0,gst_rate:18,amount:0,product_id:null}); renderRows(); setTimeout(()=>document.getElementById(`desc_${items.length-1}`)?.focus(),50); }
+function removeRow(i){ items.splice(i,1); renderRows(); }
+function updateItem(i,key,val){ items[i][key]=val; items[i].amount=calcAmt(items[i]); const el=document.getElementById(`amt_${i}`); if(el)el.textContent='₹'+fmt(items[i].amount); recalc(); }
+
+function recalc(){
+  let sub=0,cgst=0,sgst=0,igst=0;
+  items.forEach(it=>{ const a=calcAmt(it); sub+=a; const ga=a*(parseInt(it.gst_rate)||0)/100; if(gstType==='igst')igst+=ga; else{cgst+=ga/2;sgst+=ga/2;} });
+  const grand=sub+cgst+sgst+igst;
+  document.getElementById('s_sub').textContent=fmt(sub);
+  document.getElementById('s_cgst').textContent=fmt(cgst);
+  document.getElementById('s_sgst').textContent=fmt(sgst);
+  document.getElementById('s_igst').textContent=fmt(igst);
+  document.getElementById('s_grand').textContent=fmt(grand);
+}
+
+// ── PRODUCT AUTOCOMPLETE (fixed-position portal) ─────────────────────────────
+// Single shared dropdown portal — appended to <body> so it is never clipped
+// by overflow:auto/hidden ancestors.
+const portalDD = document.createElement('div');
+portalDD.id = 'prodPortalDD';
+portalDD.className = 'autocomplete-list';
+portalDD.style.cssText = 'display:none;position:fixed;z-index:99999;min-width:300px;max-width:420px;';
+document.body.appendChild(portalDD);
+
+let currentDDRow = null;
+let pdTimer;
+
+function positionPortal(inputEl) {
+  const r = inputEl.getBoundingClientRect();
+  // Flip upward if not enough space below
+  const spaceBelow = window.innerHeight - r.bottom;
+  if (spaceBelow < 220 && r.top > 220) {
+    portalDD.style.top  = '';
+    portalDD.style.bottom = (window.innerHeight - r.top + 2) + 'px';
+  } else {
+    portalDD.style.bottom = '';
+    portalDD.style.top  = (r.bottom + 2) + 'px';
+  }
+  portalDD.style.left  = r.left + 'px';
+  portalDD.style.width = Math.max(r.width, 300) + 'px';
+}
+
+function hidePortalDD() {
+  portalDD.style.display = 'none';
+  currentDDRow = null;
+}
+
+function initProdSearch(i, el) {
+  activeRowIdx = i;
+  currentDDRow = i;
+  positionPortal(el);
+  const q = (el.value || '').trim();
+  if (q) searchProducts(i, q);
+  else {
+    portalDD.innerHTML = '';
+    portalDD.style.display = 'none';
+  }
+}
+
+function handleProductInput(i, value) {
+  items[i].description = value;
+  items[i].product_id  = null;
+  items[i].amount      = calcAmt(items[i]);
+  const amtEl = document.getElementById(`amt_${i}`);
+  if (amtEl) amtEl.textContent = '₹' + fmt(items[i].amount);
+  recalc();
+  clearTimeout(pdTimer);
+  const q = String(value || '').trim();
+  if (!q) { hidePortalDD(); return; }
+  const inputEl = document.getElementById(`desc_${i}`);
+  if (inputEl) positionPortal(inputEl);
+  pdTimer = setTimeout(() => searchProducts(i, q), 200);
+}
+
+function searchProducts(i, q) {
+  fetch(`/products/api/search/?q=${encodeURIComponent(q)}`)
+    .then(r => r.json())
+    .then(d => renderProdDD(i, d.results, q));
+}
+
+function renderProdDD(i, results, q) {
+  if (currentDDRow !== i) return; // stale response — user moved to another row
+  const query = String(q || '').trim().toLowerCase();
+  const hasExact = results.some(p => String(p.name || '').trim().toLowerCase() === query);
+  const rows = results.map(p =>
+    `<div class="ac-item" onclick="selectProduct(${i},${p.id},'${escJs(p.name)}',${p.rate},'${escJs(p.hsn_sac)}',${p.gst_rate},'${p.unit}')">
+      <div>${p.name}</div>
+      <div class="sub">HSN: ${p.hsn_sac || '—'} &nbsp;·&nbsp; ₹${p.rate} &nbsp;·&nbsp; GST ${p.gst_rate}%</div>
+    </div>`
+  ).join('');
+  const create = q.trim() && !hasExact
+    ? `<div class="ac-item" style="border-top:1px solid var(--border);color:var(--accent);" onclick="openProdModal(${i},'${escJs(q)}')">
+        <i class="fa fa-plus me-1"></i>Create "<strong>${escH(q)}</strong>" as new product
+       </div>`
+    : '';
+  if (!rows && !create) { hidePortalDD(); return; }
+  portalDD.innerHTML = rows + create;
+  portalDD.style.display = 'block';
+}
+
+function selectProduct(i, id, name, rate, hsn, gst, unit) {
+  items[i] = {...items[i], product_id:id, description:name, rate:rate, hsn_sac:hsn, gst_rate:gst, unit:unit};
+  hidePortalDD();
+  renderRows();
+  setTimeout(() => document.getElementById(`desc_${i}`)?.focus(), 50);
+}
+
+// Reposition portal on scroll/resize so it tracks the input
+window.addEventListener('scroll', () => {
+  if (currentDDRow !== null) {
+    const el = document.getElementById(`desc_${currentDDRow}`);
+    if (el) positionPortal(el); else hidePortalDD();
+  }
+}, true);
+window.addEventListener('resize', () => { if (currentDDRow !== null) hidePortalDD(); });
+
+// Close when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('#prodPortalDD') && !e.target.closest('[id^="desc_"]')) {
+    hidePortalDD();
+  }
+});
+
+// ── PRODUCT MODAL ─────────────────────────────────────────────────────────────
+function openProdModal(rowIdx,name){
+  activeRowIdx=rowIdx;
+  document.getElementById('pm_name').value=name;
+  document.getElementById('pm_rate').value=items[rowIdx]?.rate || 0;
+  document.getElementById('pm_hsn').value=items[rowIdx]?.hsn_sac || '';
+  document.getElementById('pm_gst').value=String(items[rowIdx]?.gst_rate ?? 18);
+  document.getElementById('pm_unit').value=items[rowIdx]?.unit || 'Nos';
+  document.getElementById('prodModal').style.display='flex';
+}
+function closeModal(){ document.getElementById('prodModal').style.display='none'; }
+function saveQuickProduct(){
+  const name=document.getElementById('pm_name').value.trim();
+  if(!name){alert('Name required');return;}
+  const rate=document.getElementById('pm_rate').value || 0;
+  const hsn_sac=document.getElementById('pm_hsn').value;
+  const gst_rate=parseInt(document.getElementById('pm_gst').value || '18');
+  const unit=document.getElementById('pm_unit').value || 'Nos';
+  fetch('/products/api/get-or-create/',{method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
+    body:JSON.stringify({name,rate,hsn_sac,gst_rate,unit})
+  }).then(r=>r.json()).then(p=>{
+    if(activeRowIdx!==null) selectProduct(activeRowIdx,p.id,p.name,p.rate,p.hsn_sac,p.gst_rate,p.unit);
+    closeModal();
+  });
+}
+
+// ── SUBMIT ────────────────────────────────────────────────────────────────────
+function submitInvoice(){
+  if(!document.getElementById('client_id_hidden').value){alert('Please select a client first.');return false;}
+  const valid=items.filter(it=>String(it.description||'').trim());
+  if(!valid.length){alert('Please add at least one item.');return false;}
+  document.getElementById('items_json').value=JSON.stringify(valid);
+  return true;
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function fmt(n){return parseFloat(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escJs(s){return String(s).replace(/'/g,"\\'").replace(/\n/g,' ');}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+if(items.length) renderRows(); else addRow();
+setGST(gstType);
+// If editing, pre-fill client info display
+{% if invoice.client %}
+document.getElementById('clientGST').value  = '{{ invoice.client.gst_no|default:"" }}';
+document.getElementById('clientAddr').value  = '{{ invoice.client.billing_address1|default:"" }}';
+document.getElementById('clientCity').value  = '{{ invoice.client.billing_city|default:"" }} / {{ invoice.client.billing_state|default:"" }} - {{ invoice.client.billing_pin|default:"" }}';
+document.getElementById('clientInfo').innerHTML = '<span style="color:var(--success)"><i class="fa fa-check me-1"></i>{{ invoice.client.client_code }}</span>&nbsp;';
+{% endif %}
+</script>
+{% endblock %}

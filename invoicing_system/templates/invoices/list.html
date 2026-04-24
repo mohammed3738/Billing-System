@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Invoices — TFS{% endblock %}
+{% block page_title %}Invoices{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'invoices:list' %}" class="btn-ghost {% if not status %}active{% endif %}" style="{% if not status %}border-color:var(--accent);color:var(--accent);{% endif %}">All</a>
+    {% for val, label in status_choices %}
+    <a href="?status={{ val }}" class="btn-ghost" style="{% if status == val %}border-color:var(--accent);color:var(--accent);{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </div>
+  <form class="d-flex gap-2 flex-wrap">
+    <input type="hidden" name="status" value="{{ status }}"/>
+    <div class="search-wrap">
+      <i class="fa fa-magnifying-glass"></i>
+      <input type="text" name="q" value="{{ q }}" class="search-box" placeholder="Invoice # or client..."/>
+    </div>
+    <input type="date" name="date_from" value="{{ date_from }}" class="form-control" style="width:160px;"/>
+    <input type="date" name="date_to" value="{{ date_to }}" class="form-control" style="width:160px;"/>
+    <button type="submit" class="btn-ghost">Search</button>
+    {% if q or date_from or date_to %}
+    <a href="{% url 'invoices:list' %}{% if status %}?status={{ status }}{% endif %}" class="btn-ghost">Clear</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="card-dark" style="padding:0;overflow:hidden;">
+  <table class="table-dark-custom">
+    <thead><tr>
+      <th>Invoice No.</th><th>Client</th><th>Date</th><th>Due</th>
+      <th>Amount</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th>
+    </tr></thead>
+    <tbody>
+    {% for inv in invoices %}
+    <tr>
+      <td><a href="{% url 'invoices:detail' inv.pk %}" style="color:var(--accent);text-decoration:none;font-weight:600;">{{ inv.invoice_number }}</a></td>
+      <td>
+        <div style="font-weight:500;">{{ inv.client.vendor_name }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">{{ inv.client.client_code }}</div>
+      </td>
+      <td style="font-size:13px;">{{ inv.invoice_date|date:"d M Y" }}</td>
+      <td style="font-size:13px;{% if inv.status == 'overdue' %}color:var(--danger);{% endif %}">
+        {{ inv.due_date|date:"d M Y"|default:"—" }}
+      </td>
+      <td style="font-weight:600;">₹{{ inv.grand_total|floatformat:0 }}</td>
+      <td style="color:var(--success);">₹{{ inv.amount_paid|floatformat:0 }}</td>
+      <td style="{% if inv.balance_due > 0 %}color:var(--warning);{% endif %}font-weight:500;">₹{{ inv.balance_due|floatformat:0 }}</td>
+      <td><span class="badge-status badge-{{ inv.status }}">{{ inv.get_status_display }}</span></td>
+      <td>
+        <div class="d-flex gap-1">
+          <a href="{% url 'invoices:detail' inv.pk %}" class="btn-ghost" style="padding:5px 9px;font-size:12px;" title="View"><i class="fa fa-eye"></i></a>
+          <a href="{% url 'invoices:edit' inv.pk %}" class="btn-ghost" style="padding:5px 9px;font-size:12px;" title="Edit"><i class="fa fa-pencil"></i></a>
+          <a href="{% url 'invoices:print' inv.pk %}" target="_blank" class="btn-ghost" style="padding:5px 9px;font-size:12px;" title="Print"><i class="fa fa-print"></i></a>
+          {% if inv.client.whatsapp_number %}
+          <a href="{% url 'invoices:whatsapp' inv.pk %}" class="btn-ghost" style="padding:5px 9px;font-size:12px;color:#25d366;" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);">
+      <i class="fa fa-file-invoice" style="font-size:32px;margin-bottom:10px;display:block;opacity:.3;"></i>
+      No invoices found. <a href="{% url 'invoices:create' %}" style="color:var(--accent);">Create your first invoice →</a>
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Companies — Taxporium{% endblock %}
+{% block page_title %}Client Companies{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div style="font-size:13px;color:var(--text-muted);">Manage all tenant companies</div>
+  <a href="{% url 'superadmin:company_create' %}" class="btn-accent"><i class="fa fa-plus"></i>Add Company</a>
+</div>
+<div class="card-dark" style="padding:0;overflow:hidden;">
+  <table class="table-dark-custom">
+    <thead><tr>
+      <th>Company</th><th>GSTIN</th><th>Email</th><th>Mobile</th><th>Invoice Prefix</th><th>Users</th><th>Actions</th>
+    </tr></thead>
+    <tbody>
+    {% for co in companies %}
+    <tr>
+      <td>
+        <div class="d-flex align-items-center gap-2">
+          {% if co.logo %}<img src="{{ co.logo.url }}" style="height:28px;width:28px;border-radius:6px;object-fit:cover;" alt="logo"/>{% else %}
+          <div style="width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;">{{ co.name|slice:":2"|upper }}</div>{% endif %}
+          <div>
+            <div style="font-weight:600;">{{ co.name }}</div>
+            {% if co.pan %}<div style="font-size:10.5px;color:var(--text-muted);">PAN: {{ co.pan }}</div>{% endif %}
+          </div>
+        </div>
+      </td>
+      <td style="font-size:12px;">{{ co.gst_no|default:"—" }}</td>
+      <td style="font-size:12px;">{{ co.email|default:"—" }}</td>
+      <td style="font-size:12px;">{{ co.mobile|default:"—" }}</td>
+      <td><span style="background:rgba(99,102,241,.15);color:var(--accent);padding:3px 9px;border-radius:5px;font-size:11px;font-weight:600;">{{ co.invoice_prefix }}/{{ co.financial_year }}</span></td>
+      <td><span style="color:var(--text-muted);font-size:12px;">{{ co.users.count }} user{{ co.users.count|pluralize }}</span></td>
+      <td>
+        <div class="d-flex gap-1">
+          <a href="{% url 'superadmin:enter_company' co.pk %}?next={% url 'dashboard:index' %}" class="btn-accent" style="padding:4px 8px;font-size:11px;"><i class="fa fa-right-to-bracket"></i></a>
+          <a href="{% url 'superadmin:company_detail' co.pk %}" class="btn-ghost" style="padding:4px 8px;font-size:11px;"><i class="fa fa-eye"></i></a>
+          <a href="{% url 'superadmin:company_edit' co.pk %}" class="btn-ghost" style="padding:4px 8px;font-size:11px;"><i class="fa fa-pencil"></i></a>
+          <a href="{% url 'superadmin:company_delete' co.pk %}" class="btn-danger-sm" style="padding:4px 8px;font-size:11px;"><i class="fa fa-trash"></i></a>
+        </div>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" style="text-align:center;padding:36px;color:var(--text-muted);">
+      <i class="fa fa-building" style="font-size:28px;display:block;margin-bottom:8px;opacity:.3;"></i>
+      No companies yet. <a href="{% url 'superadmin:company_create' %}" style="color:var(--accent);">Add the first one →</a>
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

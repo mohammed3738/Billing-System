@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ client.vendor_name }} — TFS{% endblock %}
+{% block page_title %}{{ client.vendor_name }}{% endblock %}
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:20px;">
+  <div>
+    <div class="card-dark mb-4">
+      <div style="font-size:20px;font-family:'Space Grotesk',sans-serif;font-weight:700;margin-bottom:4px;">{{ client.vendor_name }}</div>
+      <div style="color:var(--accent);font-size:13px;font-weight:600;margin-bottom:14px;">{{ client.client_code }}</div>
+      {% if client.gst_no %}<div style="font-size:12px;color:var(--text-muted);">GST: {{ client.gst_no }}</div>{% endif %}
+      <hr style="border-color:var(--border);margin:12px 0;"/>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.8;">
+        {% if client.billing_address1 %}<div><i class="fa fa-location-dot me-2 text-muted"></i>{{ client.billing_address1 }}, {{ client.billing_city }} {{ client.billing_pin }}</div>{% endif %}
+        {% if client.billing_contact_no %}<div><i class="fa fa-phone me-2 text-muted"></i>{{ client.billing_contact_no }}</div>{% endif %}
+        {% if client.billing_email %}<div><i class="fa fa-envelope me-2 text-muted"></i>{{ client.billing_email }}</div>{% endif %}
+        {% if client.whatsapp_number %}<div><i class="fa-brands fa-whatsapp me-2" style="color:#25d366;"></i>{{ client.whatsapp_number }}</div>{% endif %}
+        <div><i class="fa fa-clock me-2 text-muted"></i>{{ client.payment_terms }}</div>
+      </div>
+      <hr style="border-color:var(--border);margin:12px 0;"/>
+      <div class="d-flex gap-2">
+        <a href="{% url 'clients:edit' client.pk %}" class="btn-ghost"><i class="fa fa-pencil me-1"></i>Edit</a>
+        <a href="{% url 'invoices:create' %}" class="btn-accent"><i class="fa fa-plus me-1"></i>New Invoice</a>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card-dark" style="padding:0;overflow:hidden;">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);font-family:'Space Grotesk',sans-serif;font-weight:600;">Recent Invoices</div>
+      <table class="table-dark-custom">
+        <thead><tr><th>Invoice</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for inv in invoices %}
+        <tr>
+          <td><a href="{% url 'invoices:detail' inv.pk %}" style="color:var(--accent);text-decoration:none;">{{ inv.invoice_number }}</a></td>
+          <td>{{ inv.invoice_date|date:"d M Y" }}</td>
+          <td style="font-weight:600;">₹{{ inv.grand_total|floatformat:0 }}</td>
+          <td><span class="badge-status badge-{{ inv.status }}">{{ inv.get_status_display }}</span></td>
+        </tr>
+        {% empty %}<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted);">No invoices yet.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
