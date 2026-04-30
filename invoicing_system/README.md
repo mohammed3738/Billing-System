@@ -18,6 +18,16 @@ Taxporium (Django superuser)
 
 ## Setup (3 commands)
 
+Create a PostgreSQL database first, then provide the connection settings in a `.env` file:
+
+```env
+POSTGRES_DB=invoicing_system
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_password
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+```
+
 ```bash
 pip install -r requirements.txt
 python setup.py          # migrations + sample data + superuser prompt
