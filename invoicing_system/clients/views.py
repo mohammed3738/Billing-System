@@ -2,8 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db.models import Q
-from .models import Client
-from .forms import ClientForm
+from .models import Client, ClientDocument
+from .forms import ClientForm, ClientDocumentFormSet
 from core.tenancy import company_required, admin_required, get_company
 import json
 
@@ -20,39 +20,47 @@ def client_list(request):
 def client_create(request):
     company = get_company(request.user)
     if request.method == 'POST':
-        form = ClientForm(request.POST)
-        if form.is_valid():
+        form = ClientForm(request.POST, request.FILES)
+        doc_formset = ClientDocumentFormSet(request.POST, request.FILES, prefix='docs')
+        if form.is_valid() and doc_formset.is_valid():
             client = form.save(commit=False)
             client.company = company
             client.save()
+            doc_formset.instance = client
+            doc_formset.save()
             messages.success(request, f'Client {client.client_code} created!')
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({'success': True, 'id': client.id, 'code': client.client_code, 'name': client.vendor_name})
             return redirect('clients:list')
     else:
         form = ClientForm()
-    return render(request, 'clients/form.html', {'form': form, 'title': 'Add New Client'})
+        doc_formset = ClientDocumentFormSet(prefix='docs')
+    return render(request, 'clients/form.html', {'form': form, 'doc_formset': doc_formset, 'title': 'Add New Client'})
 
 @company_required
 def client_edit(request, pk):
     company = get_company(request.user)
     client = get_object_or_404(Client, pk=pk, company=company)
     if request.method == 'POST':
-        form = ClientForm(request.POST, instance=client)
-        if form.is_valid():
+        form = ClientForm(request.POST, request.FILES, instance=client)
+        doc_formset = ClientDocumentFormSet(request.POST, request.FILES, instance=client, prefix='docs')
+        if form.is_valid() and doc_formset.is_valid():
             form.save()
+            doc_formset.save()
             messages.success(request, 'Client updated!')
             return redirect('clients:list')
     else:
         form = ClientForm(instance=client)
-    return render(request, 'clients/form.html', {'form': form, 'title': f'Edit {client.vendor_name}', 'client': client})
+        doc_formset = ClientDocumentFormSet(instance=client, prefix='docs')
+    return render(request, 'clients/form.html', {'form': form, 'doc_formset': doc_formset, 'title': f'Edit {client.vendor_name}', 'client': client})
 
 @company_required
 def client_detail(request, pk):
     company = get_company(request.user)
     client = get_object_or_404(Client, pk=pk, company=company)
     invoices = client.invoices.all().order_by('-invoice_date')[:10]
-    return render(request, 'clients/detail.html', {'client': client, 'invoices': invoices})
+    documents = client.documents.all().order_by('document_type')
+    return render(request, 'clients/detail.html', {'client': client, 'invoices': invoices, 'documents': documents})
 
 @company_required
 def client_delete(request, pk):
@@ -100,6 +108,17 @@ def client_search_ajax(request):
              'state': c.billing_state, 'pin': c.billing_pin,
              'whatsapp': c.whatsapp_number} for c in clients[:20]]
     return JsonResponse({'results': data})
+
+@company_required
+def document_delete(request, pk):
+    company = get_company(request.user)
+    doc = get_object_or_404(ClientDocument, pk=pk, client__company=company)
+    client_pk = doc.client_id
+    if request.method == 'POST':
+        doc.delete()
+        messages.success(request, 'Document removed.')
+        return redirect('clients:detail', pk=client_pk)
+    return JsonResponse({'error': 'POST required'}, status=405)
 
 @company_required
 def client_detail_ajax(request, pk):

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Delete Return — TFS{% endblock %}
+{% block page_title %}Delete Return{% endblock %}
+{% block content %}
+<div style="max-width:480px;">
+<div class="card-dark">
+  <div style="font-size:32px;margin-bottom:12px;">🗑️</div>
+  <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;margin-bottom:8px;">Delete this return?</div>
+  <div style="font-size:13px;color:var(--text-muted);margin-bottom:18px;">
+    <strong style="color:var(--text-primary);">{{ obj.return_type }}</strong>
+    — {{ obj.return_period|default:obj.year }}
+    <br>This action cannot be undone.
+  </div>
+  <div class="d-flex gap-2">
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn-accent" style="background:var(--danger);">Delete</button>
+    </form>
+    <a href="{% url 'returns:list' %}" class="btn-ghost">Cancel</a>
+  </div>
+</div>
+</div>
+{% endblock %}

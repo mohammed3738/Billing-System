@@ -1,5 +1,6 @@
 from django import forms
-from .models import Company, CompanyUser
+from django.forms import inlineformset_factory
+from .models import Company, CompanyUser, CompanyDocument
 
 class CompanyForm(forms.ModelForm):
     class Meta:
@@ -28,3 +29,24 @@ class CompanyUserForm(forms.ModelForm):
         model = CompanyUser
         fields = ['role']
         widgets = {'role': forms.Select(attrs={'class': 'form-select'})}
+
+
+class CompanyDocumentForm(forms.ModelForm):
+    class Meta:
+        model = CompanyDocument
+        fields = ['document_type', 'login_id', 'password', 'attachment', 'notes']
+        widgets = {
+            'document_type': forms.Select(attrs={'class': 'form-select doc-type-select'}),
+            'login_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'User ID / Login'}),
+            'password': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Password'}),
+            'notes': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Notes (optional)'}),
+            'attachment': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+        }
+
+
+CompanyDocumentFormSet = inlineformset_factory(
+    Company, CompanyDocument,
+    form=CompanyDocumentForm,
+    extra=0,
+    can_delete=True,
+)

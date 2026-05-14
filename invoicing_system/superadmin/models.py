@@ -1,5 +1,23 @@
 from django.db import models
 from django.contrib.auth.models import User
+import os
+
+DOCUMENT_TYPE_CHOICES = [
+    ('PAN', 'PAN Card'),
+    ('TAN', 'TAN Card'),
+    ('PF', 'PF Registration'),
+    ('Aadhaar', 'Aadhaar Card'),
+    ('MSME', 'MSME / Udyam Registration'),
+    ('ESIC', 'ESIC Registration'),
+    ('GST', 'GST Certificate'),
+    ('ITR', 'Income Tax Return'),
+    ('Trade License', 'Trade License'),
+    ('Shops & Establishment', 'Shops & Establishment'),
+    ('Professional Tax', 'Professional Tax'),
+    ('IEC', 'Import Export Code (IEC)'),
+    ('Bank Statement', 'Bank Statement'),
+    ('Other', 'Other'),
+]
 
 class Company(models.Model):
     """
@@ -54,3 +72,23 @@ class CompanyUser(models.Model):
     @property
     def is_admin(self):
         return self.role == 'admin'
+
+
+class CompanyDocument(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='documents')
+    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPE_CHOICES)
+    login_id = models.CharField(max_length=200, blank=True)
+    password = models.CharField(max_length=200, blank=True)
+    attachment = models.FileField(upload_to='company_documents/', blank=True, null=True)
+    notes = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.company} — {self.document_type}"
+
+    @property
+    def filename(self):
+        if self.attachment:
+            return os.path.basename(self.attachment.name)
+        return None

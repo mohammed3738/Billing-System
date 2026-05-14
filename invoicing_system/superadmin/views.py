@@ -3,8 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import JsonResponse
-from .models import Company, CompanyUser
-from .forms import CompanyForm, CompanyUserForm
+from .models import Company, CompanyUser, CompanyDocument
+from .forms import CompanyForm, CompanyUserForm, CompanyDocumentFormSet
 from core.tenancy import admin_required, company_required, get_company, get_company_user, SUPERADMIN_COMPANY_SESSION_KEY
 import json
 
@@ -33,13 +33,17 @@ def company_list(request):
 def company_create(request):
     if request.method == 'POST':
         form = CompanyForm(request.POST, request.FILES)
-        if form.is_valid():
+        doc_formset = CompanyDocumentFormSet(request.POST, request.FILES, prefix='docs')
+        if form.is_valid() and doc_formset.is_valid():
             company = form.save()
+            doc_formset.instance = company
+            doc_formset.save()
             messages.success(request, f'Company "{company.name}" created!')
             return redirect('superadmin:company_detail', pk=company.pk)
     else:
         form = CompanyForm()
-    return render(request, 'superadmin/company_form.html', {'form': form, 'title': 'Add Company'})
+        doc_formset = CompanyDocumentFormSet(prefix='docs')
+    return render(request, 'superadmin/company_form.html', {'form': form, 'doc_formset': doc_formset, 'title': 'Add Company'})
 
 
 @superadmin_required
@@ -47,23 +51,39 @@ def company_edit(request, pk):
     company = get_object_or_404(Company, pk=pk)
     if request.method == 'POST':
         form = CompanyForm(request.POST, request.FILES, instance=company)
-        if form.is_valid():
+        doc_formset = CompanyDocumentFormSet(request.POST, request.FILES, instance=company, prefix='docs')
+        if form.is_valid() and doc_formset.is_valid():
             form.save()
+            doc_formset.save()
             messages.success(request, 'Company updated!')
             return redirect('superadmin:company_detail', pk=company.pk)
     else:
         form = CompanyForm(instance=company)
-    return render(request, 'superadmin/company_form.html', {'form': form, 'title': f'Edit {company.name}', 'company': company})
+        doc_formset = CompanyDocumentFormSet(instance=company, prefix='docs')
+    return render(request, 'superadmin/company_form.html', {'form': form, 'doc_formset': doc_formset, 'title': f'Edit {company.name}', 'company': company})
 
 
 @superadmin_required
 def company_detail(request, pk):
     company = get_object_or_404(Company, pk=pk)
     company_users = company.users.select_related('user').all()
+    documents = company.documents.all().order_by('document_type')
     return render(request, 'superadmin/company_detail.html', {
         'company': company,
         'company_users': company_users,
+        'documents': documents,
     })
+
+
+@superadmin_required
+def company_document_delete(request, pk):
+    doc = get_object_or_404(CompanyDocument, pk=pk)
+    company_pk = doc.company_id
+    if request.method == 'POST':
+        doc.delete()
+        messages.success(request, 'Document removed.')
+        return redirect('superadmin:company_detail', pk=company_pk)
+    return JsonResponse({'error': 'POST required'}, status=405)
 
 
 @superadmin_required

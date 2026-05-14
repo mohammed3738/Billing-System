@@ -1,4 +1,22 @@
 from django.db import models
+import os
+
+DOCUMENT_TYPE_CHOICES = [
+    ('PAN', 'PAN Card'),
+    ('TAN', 'TAN Card'),
+    ('PF', 'PF Registration'),
+    ('Aadhaar', 'Aadhaar Card'),
+    ('MSME', 'MSME / Udyam Registration'),
+    ('ESIC', 'ESIC Registration'),
+    ('GST', 'GST Certificate'),
+    ('ITR', 'Income Tax Return'),
+    ('Trade License', 'Trade License'),
+    ('Shops & Establishment', 'Shops & Establishment'),
+    ('Professional Tax', 'Professional Tax'),
+    ('IEC', 'Import Export Code (IEC)'),
+    ('Bank Statement', 'Bank Statement'),
+    ('Other', 'Other'),
+]
 
 STATE_CHOICES = [
     ('Andhra Pradesh','Andhra Pradesh'),('Arunachal Pradesh','Arunachal Pradesh'),
@@ -65,6 +83,26 @@ class Client(models.Model):
 
     def __str__(self):
         return f"{self.client_code} - {self.vendor_name}"
+
+
+class ClientDocument(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='documents')
+    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPE_CHOICES)
+    login_id = models.CharField(max_length=200, blank=True)
+    password = models.CharField(max_length=200, blank=True)
+    attachment = models.FileField(upload_to='client_documents/', blank=True, null=True)
+    notes = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.client} — {self.document_type}"
+
+    @property
+    def filename(self):
+        if self.attachment:
+            return os.path.basename(self.attachment.name)
+        return None
 
     def save(self, *args, **kwargs):
         if not self.client_code:

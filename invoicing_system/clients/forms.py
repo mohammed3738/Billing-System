@@ -1,5 +1,6 @@
 from django import forms
-from .models import Client, STATE_CHOICES, PAYMENT_TERMS
+from django.forms import inlineformset_factory
+from .models import Client, ClientDocument, STATE_CHOICES, PAYMENT_TERMS
 
 class ClientForm(forms.ModelForm):
     class Meta:
@@ -30,3 +31,24 @@ class ClientForm(forms.ModelForm):
             'shipping_contact_no': forms.TextInput(attrs={'class': 'form-control'}),
             'whatsapp_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+91XXXXXXXXXX'}),
         }
+
+
+class ClientDocumentForm(forms.ModelForm):
+    class Meta:
+        model = ClientDocument
+        fields = ['document_type', 'login_id', 'password', 'attachment', 'notes']
+        widgets = {
+            'document_type': forms.Select(attrs={'class': 'form-select doc-type-select'}),
+            'login_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'User ID / Login'}),
+            'password': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Password'}),
+            'notes': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Notes (optional)'}),
+            'attachment': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+        }
+
+
+ClientDocumentFormSet = inlineformset_factory(
+    Client, ClientDocument,
+    form=ClientDocumentForm,
+    extra=0,
+    can_delete=True,
+)

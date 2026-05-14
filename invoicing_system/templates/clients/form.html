@@ -2,9 +2,11 @@
 {% block title %}{{ title }} — TFS{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
 {% block content %}
-<div style="max-width:860px;">
-<form method="post">
+<div style="max-width:900px;">
+<form method="post" enctype="multipart/form-data">
 {% csrf_token %}
+{{ doc_formset.management_form }}
+
 <!-- Basic Info -->
 <div class="card-dark mb-4">
   <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);"><i class="fa fa-user me-2"></i>Basic Information</div>
@@ -67,6 +69,54 @@
   </div>
 </div>
 
+<!-- Documents -->
+<div class="card-dark mb-4">
+  <div class="d-flex justify-content-between align-items-center" style="margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+    <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;"><i class="fa fa-file-shield me-2"></i>Documents &amp; Credentials</div>
+    <button type="button" class="btn-accent" style="font-size:12px;padding:5px 12px;" onclick="addDocRow()"><i class="fa fa-plus me-1"></i>Add Document</button>
+  </div>
+
+  <!-- Column headers -->
+  <div id="doc-header" style="display:none;grid-template-columns:160px 1fr 1fr 1fr 180px 36px;gap:8px;margin-bottom:6px;padding:0 2px;">
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;">Document Type</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;">User ID / Login</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;">Password</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;">Notes</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;">Attachment</div>
+    <div></div>
+  </div>
+
+  <div id="doc-rows">
+    {% for doc_form in doc_formset %}
+    <div class="doc-row" style="display:grid;grid-template-columns:160px 1fr 1fr 1fr 180px 36px;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:var(--bg-card-inner,rgba(255,255,255,0.03));border-radius:6px;border:1px solid var(--border);">
+      {{ doc_form.id }}
+      {% if doc_form.instance.pk %}{{ doc_form.DELETE }}{% endif %}
+      <div>{{ doc_form.document_type }}</div>
+      <div>{{ doc_form.login_id }}</div>
+      <div style="position:relative;">
+        {{ doc_form.password }}
+        <span onclick="togglePwd(this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);font-size:12px;"><i class="fa fa-eye"></i></span>
+      </div>
+      <div>{{ doc_form.notes }}</div>
+      <div>
+        {{ doc_form.attachment }}
+        {% if doc_form.instance.filename %}
+          <div style="font-size:11px;color:var(--accent);margin-top:3px;"><i class="fa fa-paperclip me-1"></i>{{ doc_form.instance.filename }}</div>
+        {% endif %}
+      </div>
+      <div>
+        <button type="button" onclick="removeDocRow(this)" style="background:none;border:none;color:#e74c3c;font-size:16px;cursor:pointer;padding:4px;"><i class="fa fa-trash"></i></button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div id="doc-empty" style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">
+    <i class="fa fa-file-circle-plus" style="font-size:24px;margin-bottom:6px;display:block;"></i>
+    No documents added yet. Click <strong>Add Document</strong> to start.
+  </div>
+</div>
+
 <div class="d-flex gap-2">
   <button type="submit" class="btn-accent"><i class="fa fa-floppy-disk me-1"></i>Save Client</button>
   <a href="{% url 'clients:list' %}" class="btn-ghost">Cancel</a>
@@ -74,7 +124,88 @@
 </form>
 </div>
 
+<!-- Hidden template row for cloning -->
+<div id="doc-row-template" style="display:none;">
+  <div class="doc-row" style="display:grid;grid-template-columns:160px 1fr 1fr 1fr 180px 36px;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:var(--bg-card-inner,rgba(255,255,255,0.03));border-radius:6px;border:1px solid var(--border);">
+    <div>
+      <select name="docs-__prefix__-document_type" class="form-select doc-type-select">
+        <option value="">-- Select --</option>
+        <option value="PAN">PAN Card</option>
+        <option value="TAN">TAN Card</option>
+        <option value="PF">PF Registration</option>
+        <option value="Aadhaar">Aadhaar Card</option>
+        <option value="MSME">MSME / Udyam Registration</option>
+        <option value="ESIC">ESIC Registration</option>
+        <option value="GST">GST Certificate</option>
+        <option value="ITR">Income Tax Return</option>
+        <option value="Trade License">Trade License</option>
+        <option value="Shops &amp; Establishment">Shops &amp; Establishment</option>
+        <option value="Professional Tax">Professional Tax</option>
+        <option value="IEC">Import Export Code (IEC)</option>
+        <option value="Bank Statement">Bank Statement</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div><input type="text" name="docs-__prefix__-login_id" class="form-control" placeholder="User ID / Login"></div>
+    <div style="position:relative;">
+      <input type="text" name="docs-__prefix__-password" class="form-control" placeholder="Password">
+      <span onclick="togglePwd(this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);font-size:12px;"><i class="fa fa-eye"></i></span>
+    </div>
+    <div><input type="text" name="docs-__prefix__-notes" class="form-control" placeholder="Notes (optional)"></div>
+    <div><input type="file" name="docs-__prefix__-attachment" class="form-control"></div>
+    <div>
+      <button type="button" onclick="removeDocRow(this)" style="background:none;border:none;color:#e74c3c;font-size:16px;cursor:pointer;padding:4px;"><i class="fa fa-trash"></i></button>
+    </div>
+  </div>
+</div>
+
 <script>
+const totalFormsInput = document.getElementById('id_docs-TOTAL_FORMS');
+let formCount = parseInt(totalFormsInput.value);
+
+function updateEmptyState() {
+  const rows = document.querySelectorAll('#doc-rows .doc-row');
+  const visible = Array.from(rows).filter(r => r.style.display !== 'none').length;
+  document.getElementById('doc-empty').style.display = visible === 0 ? 'block' : 'none';
+  document.getElementById('doc-header').style.display = visible === 0 ? 'none' : 'grid';
+}
+
+function addDocRow() {
+  const template = document.getElementById('doc-row-template').querySelector('.doc-row').cloneNode(true);
+  template.innerHTML = template.innerHTML.replace(/__prefix__/g, formCount);
+  document.getElementById('doc-rows').appendChild(template);
+  formCount++;
+  totalFormsInput.value = formCount;
+  updateEmptyState();
+}
+
+function removeDocRow(btn) {
+  const row = btn.closest('.doc-row');
+  // If existing row (has hidden DELETE checkbox from formset), mark for deletion
+  const deleteInput = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+  if (deleteInput) {
+    deleteInput.checked = true;
+    row.style.display = 'none';
+  } else {
+    row.remove();
+    formCount--;
+    totalFormsInput.value = formCount;
+  }
+  updateEmptyState();
+}
+
+function togglePwd(span) {
+  const input = span.previousElementSibling;
+  const icon = span.querySelector('i');
+  if (input.type === 'text') {
+    input.type = 'password';
+    icon.className = 'fa fa-eye';
+  } else {
+    input.type = 'text';
+    icon.className = 'fa fa-eye-slash';
+  }
+}
+
 function copyBilling() {
   const map = {
     'id_billing_address1': 'id_shipping_address1',
@@ -90,5 +221,8 @@ function copyBilling() {
     if (s && d) d.value = s.value;
   }
 }
+
+// Init state on page load
+updateEmptyState();
 </script>
 {% endblock %}

@@ -121,6 +121,9 @@ body.light-theme .autocomplete-list{box-shadow:0 8px 24px rgba(15,23,42,.12);}
     <a href="{% url 'quotations:list' %}" class="s-link {% if request.resolver_match.app_name == 'quotations' %}active{% endif %}">
       <i class="ico fa fa-file-signature"></i>Quotations
     </a>
+    <a href="{% url 'returns:list' %}" class="s-link {% if request.resolver_match.app_name == 'returns' %}active{% endif %}">
+      <i class="ico fa fa-rotate"></i>Returns
+    </a>
     <a href="{% url 'invoices:list' %}?status=overdue" class="s-link"><i class="ico fa fa-clock" style="color:#ef4444"></i>Overdue</a>
     <a href="{% url 'invoices:list' %}?status=paid" class="s-link"><i class="ico fa fa-circle-check" style="color:#10b981"></i>Paid</a>
     <div class="nav-label" style="margin-top:8px;">Masters</div>

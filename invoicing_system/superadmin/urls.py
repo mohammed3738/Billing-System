@@ -14,6 +14,7 @@ urlpatterns = [
     path('company/<int:pk>/add-user/',          views.add_company_user,   name='add_user'),
     path('company/<int:pk>/user/<int:user_pk>/remove/', views.remove_company_user, name='remove_user'),
     path('company/<int:pk>/user/<int:user_pk>/role/',   views.change_user_role,    name='change_role'),
+    path('company/document/<int:pk>/delete/',    views.company_document_delete, name='company_document_delete'),
     path('my-company/users/',                   views.tenant_user_list,   name='tenant_users'),
     path('my-company/users/add/',               views.tenant_add_user,    name='tenant_add_user'),
     path('my-company/users/<int:user_pk>/remove/', views.tenant_remove_user, name='tenant_remove_user'),

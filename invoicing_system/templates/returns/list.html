@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Returns — TFS{% endblock %}
+{% block page_title %}Returns{% endblock %}
+{% block content %}
+
+<!-- Top bar -->
+<div class="d-flex justify-content-between align-items-center mb-4" style="flex-wrap:wrap;gap:10px;">
+  <div class="d-flex gap-2 align-items-center" style="flex-wrap:wrap;">
+    <form method="get" class="d-flex gap-2 align-items-center" style="flex-wrap:wrap;">
+      <div style="position:relative;">
+        <select name="type" class="form-select" style="width:220px;font-size:12.5px;" onchange="this.form.submit()">
+          <option value="">All Return Types</option>
+          {% for val, label in return_type_choices %}
+          <option value="{{ val }}" {% if filter_type == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <select name="year" class="form-select" style="width:110px;font-size:12.5px;" onchange="this.form.submit()">
+        <option value="">All Years</option>
+        {% for y in all_years %}
+        <option value="{{ y }}" {% if filter_year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+      {% if filter_type or filter_year %}
+      <a href="{% url 'returns:list' %}" class="btn-ghost" style="font-size:12px;">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+  <a href="{% url 'returns:create' %}" class="btn-accent"><i class="fa fa-plus me-1"></i>Add Return</a>
+</div>
+
+{% if grouped_data %}
+{% for group in grouped_data %}
+<div class="card-dark mb-4" style="padding:0;overflow:hidden;">
+
+  <!-- Group header -->
+  <div style="padding:13px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:rgba(99,102,241,0.06);">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;">{{ group.return_type }}</span>
+      <span style="font-size:11px;color:var(--text-muted);">{{ group.label }}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="font-size:11px;color:var(--text-muted);">{{ group.filed }}/{{ group.total }} filed</span>
+      <div style="width:80px;height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
+        {% if group.total %}
+        <div style="height:100%;width:{% widthratio group.filed group.total 100 %}%;background:var(--success);border-radius:3px;transition:width .3s;"></div>
+        {% endif %}
+      </div>
+      <a href="{% url 'returns:create' %}?type={{ group.return_type }}" class="btn-ghost" style="font-size:11px;padding:3px 9px;"><i class="fa fa-plus me-1"></i>Add</a>
+    </div>
+  </div>
+
+  {% for yr in group.years %}
+  <!-- Year sub-header -->
+  <div style="padding:7px 18px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02);display:flex;align-items:center;gap:8px;">
+    <i class="fa fa-calendar-days" style="color:var(--accent);font-size:11px;"></i>
+    <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;">{{ yr.year }}</span>
+    <span style="font-size:10px;color:var(--text-muted);">{{ yr.entries|length }} entr{% if yr.entries|length == 1 %}y{% else %}ies{% endif %}</span>
+  </div>
+
+  <!-- Entries table -->
+  <table class="table-dark-custom" style="margin:0;">
+    <thead>
+      <tr>
+        <th>Period</th>
+        <th>Frequency</th>
+        <th>From</th>
+        <th>To</th>
+        <th>Due Date</th>
+        <th>Filed Date</th>
+        <th>Status</th>
+        <th>Computation</th>
+        <th>Filed Copy</th>
+        <th style="text-align:right;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for entry in yr.entries %}
+    <tr>
+      <td style="font-weight:600;">
+        {{ entry.return_period|default:entry.get_month_name }}
+        {% if entry.return_period and entry.get_month_name %}
+        <div style="font-size:10px;color:var(--text-muted);">{{ entry.get_month_name }}</div>
+        {% endif %}
+      </td>
+      <td style="font-size:12px;color:var(--text-muted);">{{ entry.frequency }}</td>
+      <td style="font-size:12px;">{{ entry.from_date|date:"d M Y"|default:"—" }}</td>
+      <td style="font-size:12px;">{{ entry.to_date|date:"d M Y"|default:"—" }}</td>
+      <td style="font-size:12px;">{{ entry.due_date|date:"d M Y"|default:"—" }}</td>
+      <td style="font-size:12px;">{{ entry.filed_date|date:"d M Y"|default:"—" }}</td>
+      <td>
+        {% if entry.status == 'Filed' %}
+          <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:600;background:rgba(16,185,129,.15);color:#10b981;"><i class="fa fa-circle-check" style="font-size:9px;"></i>Filed</span>
+        {% elif entry.status == 'Late Filed' %}
+          <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:600;background:rgba(245,158,11,.15);color:#f59e0b;"><i class="fa fa-clock" style="font-size:9px;"></i>Late Filed</span>
+        {% else %}
+          <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:600;background:rgba(239,68,68,.15);color:#ef4444;"><i class="fa fa-hourglass-half" style="font-size:9px;"></i>Pending</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if entry.computation_file %}
+        <a href="{{ entry.computation_file.url }}" target="_blank" style="color:var(--accent);font-size:11.5px;text-decoration:none;" title="{{ entry.computation_filename }}">
+          <i class="fa fa-file-arrow-down me-1"></i>{{ entry.computation_filename|truncatechars:18 }}
+        </a>
+        {% else %}<span style="color:var(--text-muted);font-size:12px;">—</span>{% endif %}
+      </td>
+      <td>
+        {% if entry.return_filed_file %}
+        <a href="{{ entry.return_filed_file.url }}" target="_blank" style="color:var(--success);font-size:11.5px;text-decoration:none;" title="{{ entry.filed_filename }}">
+          <i class="fa fa-file-circle-check me-1"></i>{{ entry.filed_filename|truncatechars:18 }}
+        </a>
+        {% else %}<span style="color:var(--text-muted);font-size:12px;">—</span>{% endif %}
+      </td>
+      <td style="text-align:right;">
+        <div class="d-flex gap-2 justify-content-end">
+          <a href="{% url 'returns:edit' entry.pk %}" class="btn-ghost" style="font-size:11px;padding:3px 9px;"><i class="fa fa-pencil"></i></a>
+          <form method="post" action="{% url 'returns:delete' entry.pk %}" onsubmit="return confirm('Delete this return?');" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn-danger-sm" style="font-size:11px;padding:3px 8px;"><i class="fa fa-trash"></i></button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+
+</div>
+{% endfor %}
+
+{% else %}
+<div class="card-dark" style="text-align:center;padding:50px 20px;color:var(--text-muted);">
+  <i class="fa fa-rotate" style="font-size:36px;margin-bottom:12px;display:block;opacity:.3;"></i>
+  <div style="font-size:15px;font-weight:600;margin-bottom:6px;">No returns yet</div>
+  <div style="font-size:13px;margin-bottom:18px;">Start tracking your compliance returns — GST, TDS, ITR and more.</div>
+  <a href="{% url 'returns:create' %}" class="btn-accent"><i class="fa fa-plus me-1"></i>Add First Return</a>
+</div>
+{% endif %}
+
+{% endblock %}

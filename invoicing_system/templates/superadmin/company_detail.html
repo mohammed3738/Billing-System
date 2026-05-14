@@ -94,5 +94,84 @@
     </div>
   </div>
 </div>
+
+</div><!-- end 2-col grid -->
+
+<!-- Documents — full width -->
+<div class="card-dark mt-2" style="padding:0;overflow:hidden;">
+  <div class="d-flex justify-content-between align-items-center" style="padding:14px 16px;border-bottom:1px solid var(--border);">
+    <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;"><i class="fa fa-file-shield me-2"></i>Documents &amp; Credentials</div>
+    <a href="{% url 'superadmin:company_edit' company.pk %}" class="btn-ghost" style="font-size:12px;padding:4px 10px;"><i class="fa fa-pencil me-1"></i>Manage</a>
+  </div>
+  {% if documents %}
+  <table class="table-dark-custom">
+    <thead>
+      <tr>
+        <th>Document</th>
+        <th>User ID</th>
+        <th>Password</th>
+        <th>Notes</th>
+        <th>Attachment</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for doc in documents %}
+    <tr>
+      <td>
+        <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--accent-muted,rgba(99,102,241,0.15));color:var(--accent);">{{ doc.document_type }}</span>
+      </td>
+      <td style="font-size:13px;">
+        {% if doc.login_id %}{{ doc.login_id }}{% else %}<span style="color:var(--text-muted);">—</span>{% endif %}
+      </td>
+      <td>
+        {% if doc.password %}
+        <span class="pwd-cell" style="font-size:13px;">
+          <span class="pwd-mask">••••••••</span>
+          <span class="pwd-plain" style="display:none;">{{ doc.password }}</span>
+          <button type="button" onclick="toggleDocPwd(this)" style="background:none;border:none;color:var(--text-muted);font-size:11px;cursor:pointer;margin-left:4px;"><i class="fa fa-eye"></i></button>
+        </span>
+        {% else %}<span style="color:var(--text-muted);">—</span>{% endif %}
+      </td>
+      <td style="font-size:12px;color:var(--text-muted);">{{ doc.notes|default:"—" }}</td>
+      <td>
+        {% if doc.attachment %}
+        <a href="{{ doc.attachment.url }}" target="_blank" style="color:var(--accent);font-size:12px;text-decoration:none;"><i class="fa fa-paperclip me-1"></i>{{ doc.filename }}</a>
+        {% else %}<span style="color:var(--text-muted);font-size:12px;">—</span>{% endif %}
+      </td>
+      <td>
+        <form method="post" action="{% url 'superadmin:company_document_delete' doc.pk %}" onsubmit="return confirm('Remove this document?');" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:13px;"><i class="fa fa-trash"></i></button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px;">
+    <i class="fa fa-file-circle-plus" style="font-size:24px;margin-bottom:6px;display:block;"></i>
+    No documents added. <a href="{% url 'superadmin:company_edit' company.pk %}" style="color:var(--accent);">Edit company</a> to add them.
+  </div>
+  {% endif %}
 </div>
+
+<script>
+function toggleDocPwd(btn) {
+  const cell = btn.closest('.pwd-cell');
+  const mask = cell.querySelector('.pwd-mask');
+  const plain = cell.querySelector('.pwd-plain');
+  const icon = btn.querySelector('i');
+  if (plain.style.display === 'none') {
+    plain.style.display = 'inline';
+    mask.style.display = 'none';
+    icon.className = 'fa fa-eye-slash';
+  } else {
+    plain.style.display = 'none';
+    mask.style.display = 'inline';
+    icon.className = 'fa fa-eye';
+  }
+}
+</script>
 {% endblock %}
